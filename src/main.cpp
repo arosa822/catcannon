@@ -2,12 +2,8 @@
 #include <Servo.h>
 #include <stdio.h>
 
-Servo myServo;
 
-const int pollingInterval = 100; //milliseconds
-const int maxDist = 40;
-
-// these are my sensors
+// peripherals 
 const int trigPin_0 = 2;
 const int echoPin_0 = 3;
 const int trigPin_1 = 4;
@@ -17,19 +13,33 @@ const int echoPin_2 = 7;
 const int trigPin_3 = 8;
 const int echoPin_3 = 9;
 const int servoPin  = 10;
+const int armBtn    = 11;
+const int armLED    = 12;
+const int relayPin  = 13;
 
+// sensor configs
+const int pollingInterval = 100; //milliseconds
+const int maxDist = 40;
+
+// calculated values and storage
 char dataBuff[100];
 long duration;
 int distance;
+int armState = 0;
+
+Servo myServo;
 
 // sensor data stores
 typedef struct {
   int d0,d1,d2,d3;
 } Sensors;
 
+Sensors data ={-1}; 
+
 
 void aimCannon(Sensors data);
 void pollSensors(Sensors *data);
+int checkArmButton(int);
 int getDistance(int,int);
 
 void setup() {
@@ -48,18 +58,38 @@ void setup() {
   pinMode(trigPin_3, OUTPUT);
   pinMode(echoPin_3, INPUT);
 
+  pinMode(armBtn, INPUT);
+  pinMode(armLED, OUTPUT);
+
 }
 
 void loop() {
 
-  Sensors data ={-1};
-  pollSensors(&data);
+  armState = checkArmButton(armState);
+  Serial.println(armState);
 
+  pollSensors(&data);
   sprintf(dataBuff,"%d, %d,%d,%d", data.d0, data.d1, data.d2, data.d3);
   Serial.println(dataBuff);
 
   aimCannon(data);
 }
+
+int checkArmButton(int armState) {
+  if (digitalRead(armBtn)){
+    delay(50); //debounce so we dont have multiple triggers
+
+    switch (armState) {
+      case 0:
+        digitalWrite(armLED,HIGH);
+        return 1;
+      case 1:
+        digitalWrite(armLED, LOW);
+        return 0;
+    }
+  }
+  return armState;
+};
 
 void pollSensors(Sensors *data) {
 

@@ -20,12 +20,14 @@ const int relayPin  = 13;
 // sensor configs
 const int pollingInterval = 100; //milliseconds
 const int maxDist = 40;
+const int triggerDuration = 500;
 
 // calculated values and storage
 char dataBuff[100];
 long duration;
 int distance;
 int armState = 0;
+int trigger = 0;
 
 Servo myServo;
 
@@ -39,6 +41,7 @@ Sensors data ={-1};
 
 void aimCannon(Sensors data);
 void pollSensors(Sensors *data);
+void fireCannon();
 int checkArmButton(int);
 int getDistance(int,int);
 
@@ -60,20 +63,34 @@ void setup() {
 
   pinMode(armBtn, INPUT);
   pinMode(armLED, OUTPUT);
+  pinMode(relayPin, OUTPUT);
 
 }
 
 void loop() {
 
   armState = checkArmButton(armState);
-  Serial.println(armState);
 
   pollSensors(&data);
   sprintf(dataBuff,"%d, %d,%d,%d", data.d0, data.d1, data.d2, data.d3);
   Serial.println(dataBuff);
 
   aimCannon(data);
+
+  if (trigger > 0 ){
+    fireCannon();
+  };
 }
+
+void fireCannon(){
+  if (armState) {
+    delay(500);
+    digitalWrite(relayPin, HIGH);
+    delay(triggerDuration);
+    digitalWrite(relayPin, LOW);
+  };
+
+};
 
 int checkArmButton(int armState) {
   if (digitalRead(armBtn)){
@@ -120,32 +137,23 @@ int getDistance(int trigPin, int echoPin ) {
   };
 
   return distance;
-}
+};
 
 void aimCannon(Sensors data) {
   // pos sweeps servo from 0 to 180 degrees
   if (data.d0 > 0){
     myServo.write(30);
+    trigger=1;
   } else if (data.d1>0 ){
     myServo.write(60);
+    trigger=1;
   } else if (data.d2>0 ){
     myServo.write(120);
+    trigger=1;
   } else if (data.d3>0 ){
     myServo.write(150);
+    trigger=1;
+  } else {
+    trigger = 0;
   }
-
-  /** 
-  kghgihvkhbrebilrcvubfbhugcli
-  // Sweep from 0 to 180 degrees
-  for (int pos = 0; pos <= 180; pos += 1) {
-    myServo.write(pos);    // Move servo to 'pos'
-    delay(15);             // Wait 15ms for the servo to reach the position
-  }
-
-  // Sweep from 180 to 0 degrees
-  for (int pos = 180; pos >= 0; pos -= 1) {
-    myServo.write(pos);
-    delay(15);
-  }
-    **/
-}
+};

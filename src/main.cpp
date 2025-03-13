@@ -19,17 +19,22 @@ const int relayPin  = 13;
 
 // sensor configs
 const int pollingInterval = 100; //milliseconds
-const int maxDist = 40;
-const int triggerDuration = 500;
+const int maxDist = 25;
+const int triggerDuration = 750;
 
 // calculated values and storage
 char dataBuff[100];
+char logBuff[100];
 long duration;
 int distance;
 int armState = 0;
-int trigger = 0;
+int trigger = 0; // initial state of the trigger
 
 Servo myServo;
+
+// timer vars
+unsigned long previousMillis = 0;
+const long interval = 3000; // cannon cooldown
 
 // sensor data stores
 typedef struct {
@@ -38,10 +43,9 @@ typedef struct {
 
 Sensors data ={-1}; 
 
-
-void aimCannon(Sensors data);
+int aimCannon(Sensors data);
 void pollSensors(Sensors *data);
-void fireCannon();
+void fireCannon(long millis);
 int checkArmButton(int);
 int getDistance(int,int);
 
@@ -68,6 +72,8 @@ void setup() {
 }
 
 void loop() {
+  unsigned long currentMillis = millis();
+  data ={-1};
 
   armState = checkArmButton(armState);
 
@@ -75,25 +81,32 @@ void loop() {
   sprintf(dataBuff,"%d, %d,%d,%d", data.d0, data.d1, data.d2, data.d3);
   Serial.println(dataBuff);
 
-  aimCannon(data);
-
+  trigger = aimCannon(data);
+  // sprintf(logBuff, "armState: %d, trigger: %d", armState, trigger);
+  // Serial.println(logBuff);
   if (trigger > 0 ){
-    fireCannon();
+    fireCannon(currentMillis);
   };
 }
 
-void fireCannon(){
-  if (armState) {
-    delay(500);
+void fireCannon(long currentMillis){
+  // sprintf(logBuff, "currentMillis: %lu, previousMillis: %lu", currentMillis, previousMillis);
+  // Serial.println(logBuff);
+  if (armState && currentMillis - previousMillis >= interval) {
+    Serial.println("Firing!");
+    previousMillis = currentMillis;
+    delay(100);
     digitalWrite(relayPin, HIGH);
     delay(triggerDuration);
-    digitalWrite(relayPin, LOW);
   };
+  digitalWrite(relayPin, LOW);
+  delay(10);
 
 };
 
 int checkArmButton(int armState) {
   if (digitalRead(armBtn)){
+    Serial.println("arm button pressed!");
     delay(50); //debounce so we dont have multiple triggers
 
     switch (armState) {
@@ -124,7 +137,7 @@ void pollSensors(Sensors *data) {
 int getDistance(int trigPin, int echoPin ) {
 
   digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
+  delayMicroseconds(5);
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
@@ -139,21 +152,21 @@ int getDistance(int trigPin, int echoPin ) {
   return distance;
 };
 
-void aimCannon(Sensors data) {
+int aimCannon(Sensors data) {
   // pos sweeps servo from 0 to 180 degrees
   if (data.d0 > 0){
     myServo.write(30);
-    trigger=1;
+    return 1;
   } else if (data.d1>0 ){
     myServo.write(60);
-    trigger=1;
+     return 1;
   } else if (data.d2>0 ){
     myServo.write(120);
-    trigger=1;
+    return 1;
   } else if (data.d3>0 ){
     myServo.write(150);
-    trigger=1;
+    return 1;
   } else {
-    trigger = 0;
+    return 0;
   }
 };
